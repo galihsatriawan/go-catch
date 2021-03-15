@@ -9,13 +9,13 @@ import (
 
 func main() {
 	catch.Catch(&catch.CatchHandler{
-		ErrorHandling: func(err interface{}) {
+		OnError: func(err interface{}) {
 			fmt.Println(err)
 		},
-		SuccessHandling: func() {
+		OnSuccess: func() {
 			fmt.Println("Success")
 		},
-		FinallyHandling: func() {
+		Finally: func() {
 			fmt.Println("Finally")
 		},
 	}, errors.New("Test Error"), "Test")

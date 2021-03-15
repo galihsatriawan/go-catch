@@ -11,24 +11,24 @@ type CatchHandlerInterface interface {
 	finally(fn func())
 }
 type CatchHandler struct {
-	ErrorHandling   func(err interface{})
-	SuccessHandling func()
-	FinallyHandling func()
+	OnError   func(err interface{})
+	OnSuccess func()
+	Finally   func()
 }
 
 func (t *CatchHandler) error(fn func(r interface{}), err interface{}) {
-	t.ErrorHandling = fn
-	t.ErrorHandling(err)
+	t.OnError = fn
+	t.OnError(err)
 }
 func (t *CatchHandler) success(fn func()) {
-	t.SuccessHandling = fn
-	t.SuccessHandling()
+	t.OnSuccess = fn
+	t.OnSuccess()
 }
 
 func (t *CatchHandler) finally(fn func()) {
-	t.FinallyHandling = fn
+	t.Finally = fn
 	fmt.Println("Finally")
-	t.FinallyHandling()
+	t.Finally()
 }
 
 var defaultErrorFunctionHandling = func(err interface{}) {
@@ -38,21 +38,21 @@ var defaultSuccessFunctionHandling = func() {
 	fmt.Println("")
 }
 
-var defaultFinallyHandling = func() {
+var defaultFinally = func() {
 	fmt.Println()
 }
 
 func catch(tCatchHandler CatchHandler) {
 	if r := recover(); r != nil {
-		tCatchHandler.ErrorHandling(r)
+		tCatchHandler.OnError(r)
 	}
 }
 
 func DefaultCatchHandler() CatchHandler {
 	return CatchHandler{
-		ErrorHandling:   defaultErrorFunctionHandling,
-		SuccessHandling: defaultSuccessFunctionHandling,
-		FinallyHandling: defaultFinallyHandling,
+		OnError:   defaultErrorFunctionHandling,
+		OnSuccess: defaultSuccessFunctionHandling,
+		Finally:   defaultFinally,
 	}
 }
 func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHandler {
@@ -61,14 +61,14 @@ func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHa
 		return defaultHandler
 	}
 	handler := catchHandlerInterface.(*CatchHandler)
-	if handler.ErrorHandling == nil {
-		handler.ErrorHandling = defaultErrorFunctionHandling
+	if handler.OnError == nil {
+		handler.OnError = defaultErrorFunctionHandling
 	}
-	if handler.SuccessHandling == nil {
-		handler.SuccessHandling = defaultSuccessFunctionHandling
+	if handler.OnSuccess == nil {
+		handler.OnSuccess = defaultSuccessFunctionHandling
 	}
-	if handler.FinallyHandling == nil {
-		handler.FinallyHandling = defaultFinallyHandling
+	if handler.Finally == nil {
+		handler.Finally = defaultFinally
 	}
 	return *handler
 }
@@ -79,8 +79,8 @@ func Catch(catchHandler CatchHandlerInterface, err error, msg string) {
 		if err != nil {
 			log.Panicf("%s: %s", msg, err)
 		} else {
-			handler.SuccessHandling()
+			handler.OnSuccess()
 		}
 	}()
-	handler.FinallyHandling()
+	handler.Finally()
 }
