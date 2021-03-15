@@ -8,10 +8,12 @@ import (
 type CatchHandlerInterface interface {
 	error(fn func(r interface{}), err interface{})
 	success(fn func())
+	finally(fn func())
 }
 type CatchHandler struct {
 	ErrorHandling   func(err interface{})
 	SuccessHandling func()
+	FinallyHandling func()
 }
 
 func (t *CatchHandler) error(fn func(r interface{}), err interface{}) {
@@ -23,6 +25,12 @@ func (t *CatchHandler) success(fn func()) {
 	t.SuccessHandling()
 }
 
+func (t *CatchHandler) finally(fn func()) {
+	t.FinallyHandling = fn
+	fmt.Println("Finally")
+	t.FinallyHandling()
+}
+
 var defaultErrorFunctionHandling = func(err interface{}) {
 	fmt.Println(err)
 }
@@ -30,17 +38,22 @@ var defaultSuccessFunctionHandling = func() {
 	fmt.Println("")
 }
 
+var defaultFinallyHandling = func() {
+	fmt.Println()
+}
+
 func catch(tCatchHandler CatchHandler) {
 	if r := recover(); r != nil {
 		tCatchHandler.ErrorHandling(r)
-	} else {
-		tCatchHandler.SuccessHandling()
 	}
 }
 
 func DefaultCatchHandler() CatchHandler {
-	return CatchHandler{ErrorHandling: defaultErrorFunctionHandling,
-		SuccessHandling: defaultSuccessFunctionHandling}
+	return CatchHandler{
+		ErrorHandling:   defaultErrorFunctionHandling,
+		SuccessHandling: defaultSuccessFunctionHandling,
+		FinallyHandling: defaultFinallyHandling,
+	}
 }
 func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHandler {
 	defaultHandler := DefaultCatchHandler()
@@ -54,12 +67,20 @@ func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHa
 	if handler.SuccessHandling == nil {
 		handler.SuccessHandling = defaultSuccessFunctionHandling
 	}
-	return defaultHandler
+	if handler.FinallyHandling == nil {
+		handler.FinallyHandling = defaultFinallyHandling
+	}
+	return *handler
 }
 func Catch(catchHandler CatchHandlerInterface, err error, msg string) {
 	handler := assignFunctionHandling(catchHandler)
-	defer catch(handler)
-	if err != nil {
-		log.Panicf("%s: %s", msg, err)
-	}
+	func() {
+		defer catch(handler)
+		if err != nil {
+			log.Panicf("%s: %s", msg, err)
+		} else {
+			handler.SuccessHandling()
+		}
+	}()
+	handler.FinallyHandling()
 }
