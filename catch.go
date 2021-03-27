@@ -27,7 +27,6 @@ func (t *CatchHandler) success(fn func()) {
 
 func (t *CatchHandler) finally(fn func()) {
 	t.Finally = fn
-	fmt.Println("Finally")
 	t.Finally()
 }
 
@@ -35,11 +34,9 @@ var defaultErrorFunctionHandling = func(err interface{}) {
 	fmt.Println(err)
 }
 var defaultSuccessFunctionHandling = func() {
-	fmt.Println("")
 }
 
 var defaultFinally = func() {
-	fmt.Println()
 }
 
 func catch(tCatchHandler CatchHandler) {
