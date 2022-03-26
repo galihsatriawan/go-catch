@@ -1,55 +1,56 @@
 package catch
 
 import (
-	"fmt"
-	"log"
+	"reflect"
 )
 
 type CatchHandlerInterface interface {
-	error(fn func(r interface{}), err interface{})
-	success(fn func())
-	finally(fn func())
+	error(handler OnErrorHandler, err interface{})
+	failure(handler OnFailureHandler, err interface{})
+	success(handler OnSuccessHandler)
+	finally(handler FinallyHandler)
 }
+
 type CatchHandler struct {
-	OnError   func(err interface{})
-	OnSuccess func()
-	Finally   func()
+	OnError   *OnErrorHandler
+	OnFailure *OnFailureHandler
+	OnSuccess *OnSuccessHandler
+	Finally   *FinallyHandler
 }
 
-func (t *CatchHandler) error(fn func(r interface{}), err interface{}) {
-	t.OnError = fn
-	t.OnError(err)
-}
-func (t *CatchHandler) success(fn func()) {
-	t.OnSuccess = fn
-	t.OnSuccess()
+// error handle panic error
+func (t *CatchHandler) error(handler OnErrorHandler, err interface{}) {
+	t.OnError = &handler
+	t.OnError.Callback(err)
 }
 
-func (t *CatchHandler) finally(fn func()) {
-	t.Finally = fn
-	t.Finally()
+func (t *CatchHandler) failure(handler OnFailureHandler, err interface{}) {
+	t.OnFailure = &handler
+	t.OnFailure.Callback(err)
 }
 
-var defaultErrorFunctionHandling = func(err interface{}) {
-	fmt.Println(err)
-}
-var defaultSuccessFunctionHandling = func() {
+func (t *CatchHandler) success(handler OnSuccessHandler) {
+	t.OnSuccess = &handler
+	t.OnSuccess.Callback()
 }
 
-var defaultFinally = func() {
+func (t *CatchHandler) finally(handler FinallyHandler) {
+	t.Finally = &handler
+	t.Finally.Callback()
 }
 
 func catch(tCatchHandler CatchHandler) {
 	if r := recover(); r != nil {
-		tCatchHandler.OnError(r)
+		tCatchHandler.OnError.Callback(r)
 	}
 }
 
 func DefaultCatchHandler() CatchHandler {
 	return CatchHandler{
-		OnError:   defaultErrorFunctionHandling,
-		OnSuccess: defaultSuccessFunctionHandling,
-		Finally:   defaultFinally,
+		OnError:   &defaultErrorFunctionHandling,
+		OnFailure: &defaultFailureFunctionHandling,
+		OnSuccess: &defaultSuccessFunctionHandling,
+		Finally:   &defaultFinally,
 	}
 }
 func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHandler {
@@ -59,25 +60,81 @@ func assignFunctionHandling(catchHandlerInterface CatchHandlerInterface) CatchHa
 	}
 	handler := catchHandlerInterface.(*CatchHandler)
 	if handler.OnError == nil {
-		handler.OnError = defaultErrorFunctionHandling
+		handler.OnError = &defaultErrorFunctionHandling
 	}
+
+	if handler.OnFailure == nil {
+		handler.OnFailure = &defaultFailureFunctionHandling
+	}
+
 	if handler.OnSuccess == nil {
-		handler.OnSuccess = defaultSuccessFunctionHandling
+		handler.OnSuccess = &defaultSuccessFunctionHandling
 	}
 	if handler.Finally == nil {
-		handler.Finally = defaultFinally
+		handler.Finally = &defaultFinally
 	}
 	return *handler
 }
-func Catch(catchHandler CatchHandlerInterface, err error, msg string) {
+func Catch(Callback func() error, catchHandler CatchHandlerInterface) (err error) {
 	handler := assignFunctionHandling(catchHandler)
 	func() {
 		defer catch(handler)
+		err = Callback()
 		if err != nil {
-			log.Panicf("%s: %s", msg, err)
+			returnOnFailureCallback := handler.OnFailure.Callback(err)
+			handler.OnFailure.SetResult(returnOnFailureCallback)
+
+			err = handler.OnFailure.Validate()
+			// panic error
+			if err != nil {
+				handler.OnError.Callback(err)
+				return
+			}
+
+			// give compatibility although `result` is pointer or not
+			onFailureSetValue := reflect.ValueOf(returnOnFailureCallback)
+			if onFailureSetValue.Kind() == reflect.Ptr {
+				onFailureSetValue = onFailureSetValue.Elem()
+			}
+			reflect.ValueOf(handler.OnFailure.Dst).Elem().Set(onFailureSetValue)
 		} else {
-			handler.OnSuccess()
+			returnOnSuccessCallback := handler.OnSuccess.Callback()
+			handler.OnSuccess.SetResult(returnOnSuccessCallback)
+
+			err = handler.OnSuccess.Validate()
+			// panic error
+			if err != nil {
+				handler.OnError.Callback(err)
+				return
+			}
+			if handler.Finally.Dst != nil {
+				// give compatibility although `result` is pointer or not
+				onSuccessSetValue := reflect.ValueOf(returnOnSuccessCallback)
+				if onSuccessSetValue.Kind() == reflect.Ptr {
+					onSuccessSetValue = onSuccessSetValue.Elem()
+				}
+				reflect.ValueOf(handler.OnSuccess.Dst).Elem().Set(onSuccessSetValue)
+			}
 		}
 	}()
-	handler.Finally()
+
+	returnFinallyCallback := handler.Finally.Callback()
+	handler.Finally.SetResult(returnFinallyCallback)
+
+	err = handler.Finally.Validate()
+
+	// panic error
+	if err != nil {
+		handler.OnError.Callback(err)
+		return
+	}
+	if handler.Finally.Dst != nil {
+		// give compatibility although `result` is pointer or not
+		finallySetValue := reflect.ValueOf(returnFinallyCallback)
+		if finallySetValue.Kind() == reflect.Ptr {
+			finallySetValue = finallySetValue.Elem()
+		}
+		reflect.ValueOf(handler.Finally.Dst).Elem().Set(finallySetValue)
+	}
+	return
 }
