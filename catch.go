@@ -130,7 +130,7 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		errorHandler = handler.onSuccessHandler.Assign(returnOnSuccessCallback)
 		if err != nil {
 			log.Err(errorHandler).
-				Msg("error in returnOnSuccessCallback when try to assign")
+				Msg("error in onSuccessHandler when try to assign")
 			handler.onErrorHandler.callback(errorHandler)
 			return errorHandler
 		}
