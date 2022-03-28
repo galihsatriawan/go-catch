@@ -7,20 +7,29 @@ import (
 )
 
 func main() {
-	var arr []int64
-	catch.Catch(func() error {
+	var arr []int
+	err := catch.Catch(func() error {
 		var err error = fmt.Errorf("test")
 		fmt.Println(arr[0])
 		return err
-	}, &catch.CatchHandler{
-		OnFailure: &catch.OnFailureHandler{
-			Dst: &arr,
-			Callback: func(err interface{}) (dst interface{}) {
-				var a []int64
-				a = append(a, 1)
-				return &a
-			},
-		},
-	})
-	fmt.Println(arr)
+	},
+		catch.OnError(func(err interface{}) {
+			fmt.Println(err)
+		}),
+		catch.OnSuccess(nil, func() interface{} {
+			return nil
+		}),
+		catch.OnFailure(&arr, func(err interface{}) interface{} {
+			var a []int
+			fmt.Println("hello")
+			return &a
+		}),
+		catch.Finally(&arr, func() interface{} {
+			var a []int
+			a = append(a, 1)
+			return a
+		}),
+	)
+
+	fmt.Println(err, arr)
 }
