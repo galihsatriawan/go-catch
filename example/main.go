@@ -28,9 +28,11 @@ func main() {
 			return nil
 		}),
 		catch.Finally(&arr, func() interface{} {
-			fmt.Println("test panic 3")
-			fmt.Println(arr[0])
-			return nil
+			var a []int
+			a = append(a, 1)
+			// fmt.Println("test panic 3")
+			// fmt.Println(arr[0])
+			return a
 		}),
 	)
 

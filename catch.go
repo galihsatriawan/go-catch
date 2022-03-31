@@ -28,7 +28,9 @@ func OnError(callback func(err interface{})) func(*CatchHandler) {
 func OnFailure(dst interface{}, callback func(err interface{}) interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.onFailureHandler = &OnFailureHandler{
-			dst:      dst,
+			handler: handler{
+				dst: dst,
+			},
 			callback: callback,
 		}
 	}
@@ -36,7 +38,9 @@ func OnFailure(dst interface{}, callback func(err interface{}) interface{}) func
 func OnSuccess(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.onSuccessHandler = &OnSuccessHandler{
-			dst:      dst,
+			handler: handler{
+				dst: dst,
+			},
 			callback: callback,
 		}
 	}
@@ -45,7 +49,9 @@ func OnSuccess(dst interface{}, callback func() interface{}) func(*CatchHandler)
 func Finally(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.finallyHandler = &FinallyHandler{
-			dst:      dst,
+			handler: handler{
+				dst: dst,
+			},
 			callback: callback,
 		}
 	}
