@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ERR_UNADDRESSABLE_VALUE             = "destination using unaddressable value, %s must be a pointer"
+	ERR_DESTINATION_UNADDRESSABLE_VALUE = "destination using unaddressable value, %s must be a pointer or nil"
 	ERR_NOT_ASSIGNABLE_TO_SPECIFIC_TYPE = "value of type %v is not assignable to type %v"
 	ERR_INVALID_MEMORY_ADDRESS          = "invalid memory address or nil pointer"
 )
@@ -69,7 +69,8 @@ func (h *handler) Assign(result interface{}) (err error) {
 		return
 	}
 	if reflect.ValueOf(h.dst).Kind() != reflect.Ptr {
-		return fmt.Errorf(ERR_UNADDRESSABLE_VALUE, "`dst`")
+		err = fmt.Errorf(ERR_DESTINATION_UNADDRESSABLE_VALUE, "`dst`")
+		return
 	}
 	destinationType := reflect.TypeOf(h.dst)
 	resultType := reflect.TypeOf(h.result)
