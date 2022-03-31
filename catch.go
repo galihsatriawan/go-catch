@@ -105,6 +105,8 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 	handler := assignFunctionHandling(handlers...)
 	defer catch(handler, &err)
 	defer func(err *error) {
+		// handle `recover` when there are two handler has panic error
+		defer catch(handler, err)
 		returnFinallyCallback := handler.finallyHandler.callback()
 		errorHandler = handler.finallyHandler.Assign(returnFinallyCallback)
 		if errorHandler != nil {

@@ -1,11 +1,8 @@
 package catch
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -78,8 +75,8 @@ func (h *OnFailureHandler) Assign(result interface{}) (err error) {
 	destinationType := reflect.TypeOf(h.dst)
 	resultType := reflect.TypeOf(h.result)
 	if resultType == nil {
-		log.Warn().Err(errors.New(ERR_INVALID_MEMORY_ADDRESS)).
-			Msg("the `result` is nil")
+		dstElem := reflect.ValueOf(h.dst).Elem()
+		dstElem.Set(reflect.Zero(dstElem.Type()))
 		return
 	}
 	if !resultType.AssignableTo(destinationType) {
@@ -113,8 +110,8 @@ func (h *OnSuccessHandler) Assign(result interface{}) (err error) {
 	destinationType := reflect.TypeOf(h.dst)
 	resultType := reflect.TypeOf(h.result)
 	if resultType == nil {
-		log.Warn().Err(errors.New(ERR_INVALID_MEMORY_ADDRESS)).
-			Msg("the `result` is nil")
+		dstElem := reflect.ValueOf(h.dst).Elem()
+		dstElem.Set(reflect.Zero(dstElem.Type()))
 		return
 	}
 	if !resultType.AssignableTo(destinationType) {
@@ -149,8 +146,8 @@ func (h *FinallyHandler) Assign(result interface{}) (err error) {
 	destinationType := reflect.TypeOf(h.dst)
 	resultType := reflect.TypeOf(h.result)
 	if resultType == nil {
-		log.Warn().Err(errors.New(ERR_INVALID_MEMORY_ADDRESS)).
-			Msg("the `result` is nil")
+		dstElem := reflect.ValueOf(h.dst).Elem()
+		dstElem.Set(reflect.Zero(dstElem.Type()))
 		return
 	}
 	if !resultType.AssignableTo(destinationType) {
