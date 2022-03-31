@@ -109,27 +109,28 @@ func assignFunctionHandling(handlers ...func(*CatchHandler)) CatchHandler {
 func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 	var errorHandler error
 	handler := assignFunctionHandling(handlers...)
-	defer catch(handler, &err)
 	defer func(err *error) {
-		// handle `recover` when there are two handler has panic error
-		defer catch(handler, err)
 		returnFinallyCallback := handler.finallyHandler.callback()
 		errorHandler = handler.finallyHandler.Assign(returnFinallyCallback)
 		if errorHandler != nil {
-			log.Err(errorHandler).
+			log.Warn().
+				Err(errorHandler).
 				Msg("error in finallyHandler when try to assign")
-			handler.onErrorHandler.callback(errorHandler)
 			*err = errorHandler
 		}
 	}(&err)
-	err = fn()
+	err = func(catchHandler CatchHandler, err error) error {
+		// only catch panic error for function wrapper
+		defer catch(handler, &err)
+		return fn()
+	}(handler, err)
 	if err != nil {
 		returnOnFailureCallback := handler.onFailureHandler.callback(err)
 		errorHandler = handler.onFailureHandler.Assign(returnOnFailureCallback)
 		if errorHandler != nil {
-			log.Err(errorHandler).
+			log.Warn().
+				Err(errorHandler).
 				Msg("error in onFailureHandler when try to assign")
-			handler.onErrorHandler.callback(errorHandler)
 			return errorHandler
 		}
 
@@ -137,9 +138,9 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		returnOnSuccessCallback := handler.onSuccessHandler.callback()
 		errorHandler = handler.onSuccessHandler.Assign(returnOnSuccessCallback)
 		if err != nil {
-			log.Err(errorHandler).
+			log.Warn().
+				Err(errorHandler).
 				Msg("error in onSuccessHandler when try to assign")
-			handler.onErrorHandler.callback(errorHandler)
 			return errorHandler
 		}
 	}
