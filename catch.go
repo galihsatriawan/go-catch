@@ -82,7 +82,7 @@ func catch(tCatchHandler CatchHandler, err *error) {
 	if r := recover(); r != nil {
 		rError := r.(error)
 		*err = rError
-		log.Warn().
+		log.Error().
 			Err(rError).
 			Msg("[catch] panic error")
 
@@ -113,7 +113,7 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		returnFinallyCallback := catchHandler.finallyHandler.callback()
 		errorHandler = catchHandler.finallyHandler.Assign(returnFinallyCallback)
 		if errorHandler != nil {
-			log.Warn().
+			log.Error().
 				Err(errorHandler).
 				Msg("error in finallyHandler when try to assign")
 		}
@@ -127,20 +127,18 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		returnOnFailureCallback := handler.onFailureHandler.callback(err)
 		errorHandler = handler.onFailureHandler.Assign(returnOnFailureCallback)
 		if errorHandler != nil {
-			log.Warn().
+			log.Error().
 				Err(errorHandler).
 				Msg("error in onFailureHandler when try to assign")
-			return
 		}
 
 	} else {
 		returnOnSuccessCallback := handler.onSuccessHandler.callback()
 		errorHandler = handler.onSuccessHandler.Assign(returnOnSuccessCallback)
-		if err != nil {
-			log.Warn().
+		if errorHandler != nil {
+			log.Error().
 				Err(errorHandler).
 				Msg("error in onSuccessHandler when try to assign")
-			return
 		}
 	}
 	return
