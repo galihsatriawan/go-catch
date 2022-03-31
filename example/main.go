@@ -18,8 +18,11 @@ func main() {
 			fmt.Println(err)
 		}),
 		catch.OnSuccess(nil, func() interface{} {
+			catch.Catch(func() error {
+				fmt.Println(arr[0])
+				return nil
+			})
 			fmt.Println("test panic 2")
-			fmt.Println(arr[0])
 			return nil
 		}),
 		catch.OnFailure(nil, func(err interface{}) interface{} {
