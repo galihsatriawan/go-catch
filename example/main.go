@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/galihsatriawan/go-catch/v2"
 )
@@ -14,27 +15,25 @@ func main() {
 		fmt.Println(arr[0])
 		return err
 	},
-		catch.OnError(func(err interface{}) {
-			fmt.Println(err)
-		}),
 		catch.OnSuccess(nil, func() interface{} {
 			catch.Catch(func() error {
 				fmt.Println(arr[0])
 				return nil
 			})
-			fmt.Println("test panic 2")
+			fmt.Println("[success] test panic 2")
 			return nil
 		}),
 		catch.OnFailure(nil, func(err interface{}) interface{} {
-			fmt.Println("test panic 2")
+			fmt.Println("[failure] test panic 2")
 			fmt.Println(arr[0])
 			return nil
 		}),
 		catch.Finally(&arr, func() interface{} {
 			var a []int
 			a = append(a, 1)
-			// fmt.Println("test panic 3")
-			// fmt.Println(arr[0])
+			fmt.Println("test panic 3")
+			fmt.Println(arr[0])
+			time.Sleep(3 * time.Second)
 			return a
 		}),
 	)

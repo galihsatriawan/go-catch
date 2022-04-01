@@ -5,26 +5,18 @@ import (
 )
 
 type CatchHandlerInterface interface {
-	error(handler OnErrorHandler, err interface{})
 	failure(handler OnFailureHandler, err interface{})
 	success(handler OnSuccessHandler)
 	finally(handler FinallyHandler)
 }
 
 type CatchHandler struct {
-	onErrorHandler   *OnErrorHandler
 	onFailureHandler *OnFailureHandler
 	onSuccessHandler *OnSuccessHandler
 	finallyHandler   *FinallyHandler
 }
 
-func OnError(callback func(err interface{})) func(*CatchHandler) {
-	return func(ch *CatchHandler) {
-		ch.onErrorHandler = &OnErrorHandler{
-			callback: callback,
-		}
-	}
-}
+// OnFailure is handler that will be executed when code in function wrapper return error or do panic error
 func OnFailure(dst interface{}, callback func(err interface{}) interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.onFailureHandler = &OnFailureHandler{
@@ -35,6 +27,8 @@ func OnFailure(dst interface{}, callback func(err interface{}) interface{}) func
 		}
 	}
 }
+
+// OnSuccess is handler that will be executed when code in `function wrapper` doesn't return error or doesn't do panic error
 func OnSuccess(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.onSuccessHandler = &OnSuccessHandler{
@@ -46,6 +40,7 @@ func OnSuccess(dst interface{}, callback func() interface{}) func(*CatchHandler)
 	}
 }
 
+// Finally is handler that will be executed in the last time (although there is a panic error in a other handler)
 func Finally(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 	return func(ch *CatchHandler) {
 		ch.finallyHandler = &FinallyHandler{
@@ -55,12 +50,6 @@ func Finally(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 			callback: callback,
 		}
 	}
-}
-
-// error handle panic error
-func (t *CatchHandler) error(handler OnErrorHandler, err interface{}) {
-	t.onErrorHandler = &handler
-	t.onErrorHandler.callback(err)
 }
 
 func (t *CatchHandler) failure(handler OnFailureHandler, err interface{}) {
@@ -78,6 +67,7 @@ func (t *CatchHandler) finally(handler FinallyHandler) {
 	t.finallyHandler.callback()
 }
 
+// catch will use to catch panic error in `function wrapper`
 func catch(tCatchHandler CatchHandler, err *error) {
 	if r := recover(); r != nil {
 		rError := r.(error)
@@ -85,19 +75,19 @@ func catch(tCatchHandler CatchHandler, err *error) {
 		log.Error().
 			Err(rError).
 			Msg("[catch] panic error")
-
-		tCatchHandler.onErrorHandler.callback(r)
 	}
 }
 
+// DefaultCatchHandler assign default handler
 func DefaultCatchHandler() CatchHandler {
 	return CatchHandler{
-		onErrorHandler:   &defaultErrorFunctionHandling,
 		onFailureHandler: &defaultFailureFunctionHandling,
 		onSuccessHandler: &defaultSuccessFunctionHandling,
 		finallyHandler:   &defaultFinally,
 	}
 }
+
+// assignFunctionHandling is used for assign custom handler
 func assignFunctionHandling(handlers ...func(*CatchHandler)) CatchHandler {
 	defaultHandler := DefaultCatchHandler()
 
@@ -106,6 +96,7 @@ func assignFunctionHandling(handlers ...func(*CatchHandler)) CatchHandler {
 	}
 	return defaultHandler
 }
+
 func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 	var errorHandler error
 	handler := assignFunctionHandling(handlers...)
@@ -118,11 +109,19 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 				Msg("error in finallyHandler when try to assign")
 		}
 	}(handler)
-	err = func(catchHandler CatchHandler, err error) error {
+
+	//function wrapper
+	errFunction := func(catchHandler CatchHandler, err *error) error {
 		// only catch panic error for function wrapper
-		defer catch(handler, &err)
+		defer catch(handler, err)
 		return fn()
-	}(handler, err)
+	}(handler, &err)
+
+	// if there a panic error will try to assign with errFunction
+	// panic error will be first priority to return
+	if err == nil {
+		err = errFunction
+	}
 	if err != nil {
 		returnOnFailureCallback := handler.onFailureHandler.callback(err)
 		errorHandler = handler.onFailureHandler.Assign(returnOnFailureCallback)
@@ -131,7 +130,6 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 				Err(errorHandler).
 				Msg("error in onFailureHandler when try to assign")
 		}
-
 	} else {
 		returnOnSuccessCallback := handler.onSuccessHandler.callback()
 		errorHandler = handler.onSuccessHandler.Assign(returnOnSuccessCallback)
