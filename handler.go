@@ -18,10 +18,6 @@ type handler struct {
 type HandlerInterface interface {
 	Assign(result interface{}) (err error)
 }
-type OnErrorHandler struct {
-	handler
-	callback func(err interface{})
-}
 
 type OnFailureHandler struct {
 	handler
@@ -39,10 +35,6 @@ type FinallyHandler struct {
 	callback func() (dst interface{})
 }
 
-var defaultErrorFunctionHandling = OnErrorHandler{
-	callback: func(err interface{}) {
-	},
-}
 var defaultSuccessFunctionHandling = OnSuccessHandler{
 	callback: func() (dst interface{}) {
 		return
@@ -95,10 +87,5 @@ func (h *handler) Assign(result interface{}) (err error) {
 		setValue = setValue.Elem()
 	}
 	dstValue.Elem().Set(setValue)
-	return
-}
-
-// override parent function
-func (h *OnErrorHandler) Assign(result interface{}) (err error) {
 	return
 }
