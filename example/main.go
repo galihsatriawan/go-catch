@@ -15,6 +15,9 @@ func main() {
 		fmt.Println(arr[0])
 		return err
 	},
+		catch.OnPanic(func(err interface{}) {
+			return
+		}),
 		catch.OnSuccess(nil, func() interface{} {
 			catch.Catch(func() error {
 				fmt.Println(arr[0])
@@ -25,14 +28,14 @@ func main() {
 		}),
 		catch.OnFailure(nil, func(err interface{}) interface{} {
 			fmt.Println("[failure] test panic 2")
-			fmt.Println(arr[0])
+			// fmt.Println(arr[0])
 			return nil
 		}),
 		catch.Finally(&arr, func() interface{} {
 			var a []int
 			a = append(a, 1)
 			fmt.Println("test panic 3")
-			fmt.Println(arr[0])
+			// fmt.Println(arr[0])
 			time.Sleep(3 * time.Second)
 			return a
 		}),

@@ -12,13 +12,17 @@ var (
 )
 
 type handler struct {
+	err    error
 	dst    interface{}
 	result interface{}
 }
 type HandlerInterface interface {
 	Assign(result interface{}) (err error)
 }
-
+type OnPanicHandler struct {
+	handler
+	callback func(err interface{})
+}
 type OnFailureHandler struct {
 	handler
 	callback func(err interface{}) (dst interface{})
@@ -51,6 +55,11 @@ var defaultFinally = FinallyHandler{
 	callback: func() (dst interface{}) {
 		return
 	},
+}
+
+// SetError used for assigning error
+func (h *handler) SetError(err error) {
+	h.err = err
 }
 
 // Currently, because the several handler has same function action for `Assign`, so we define `Assign` to parent
@@ -87,5 +96,10 @@ func (h *handler) Assign(result interface{}) (err error) {
 		setValue = setValue.Elem()
 	}
 	dstValue.Elem().Set(setValue)
+	return
+}
+
+// Override parent function
+func (p *OnPanicHandler) Assign(result interface{}) (err error) {
 	return
 }

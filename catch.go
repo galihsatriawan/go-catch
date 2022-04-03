@@ -4,16 +4,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type CatchHandlerInterface interface {
-	failure(handler OnFailureHandler, err interface{})
-	success(handler OnSuccessHandler)
-	finally(handler FinallyHandler)
-}
-
 type CatchHandler struct {
+	onPanicHandler   *OnPanicHandler
 	onFailureHandler *OnFailureHandler
 	onSuccessHandler *OnSuccessHandler
 	finallyHandler   *FinallyHandler
+}
+
+// OnPanic is handler that will be executed when there is panic error in function wrapper
+func OnPanic(callback func(err interface{})) func(*CatchHandler) {
+	return func(ch *CatchHandler) {
+		ch.onPanicHandler = &OnPanicHandler{
+			callback: callback,
+		}
+	}
 }
 
 // OnFailure is handler that will be executed when code in function wrapper return error or do panic error
@@ -52,25 +56,11 @@ func Finally(dst interface{}, callback func() interface{}) func(*CatchHandler) {
 	}
 }
 
-func (t *CatchHandler) failure(handler OnFailureHandler, err interface{}) {
-	t.onFailureHandler = &handler
-	t.onFailureHandler.callback(err)
-}
-
-func (t *CatchHandler) success(handler OnSuccessHandler) {
-	t.onSuccessHandler = &handler
-	t.onSuccessHandler.callback()
-}
-
-func (t *CatchHandler) finally(handler FinallyHandler) {
-	t.finallyHandler = &handler
-	t.finallyHandler.callback()
-}
-
 // catch will use to catch panic error in `function wrapper`
 func catch(tCatchHandler CatchHandler, err *error) {
 	if r := recover(); r != nil {
 		rError := r.(error)
+		tCatchHandler.onPanicHandler.SetError(rError)
 		*err = rError
 		log.Error().
 			Err(rError).
@@ -100,20 +90,14 @@ func assignFunctionHandling(handlers ...func(*CatchHandler)) CatchHandler {
 func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 	var errorHandler error
 	handler := assignFunctionHandling(handlers...)
-	defer func(catchHandler CatchHandler) {
-		returnFinallyCallback := catchHandler.finallyHandler.callback()
-		errorHandler = catchHandler.finallyHandler.Assign(returnFinallyCallback)
-		if errorHandler != nil {
-			log.Error().
-				Err(errorHandler).
-				Msg("error in finallyHandler when try to assign")
-		}
-	}(handler)
 
 	//function wrapper
 	errFunction := func(catchHandler CatchHandler, err *error) error {
-		// only catch panic error for function wrapper
-		defer catch(handler, err)
+		// only catch panic error for function wrapper and if needed, sometime for routine worker
+		if catchHandler.onPanicHandler != nil {
+			defer catch(catchHandler, err)
+		}
+
 		return fn()
 	}(handler, &err)
 
@@ -126,6 +110,7 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		returnOnFailureCallback := handler.onFailureHandler.callback(err)
 		errorHandler = handler.onFailureHandler.Assign(returnOnFailureCallback)
 		if errorHandler != nil {
+			handler.onFailureHandler.SetError(errorHandler)
 			log.Error().
 				Err(errorHandler).
 				Msg("error in onFailureHandler when try to assign")
@@ -134,10 +119,24 @@ func Catch(fn func() error, handlers ...func(*CatchHandler)) (err error) {
 		returnOnSuccessCallback := handler.onSuccessHandler.callback()
 		errorHandler = handler.onSuccessHandler.Assign(returnOnSuccessCallback)
 		if errorHandler != nil {
+			handler.onSuccessHandler.SetError(errorHandler)
 			log.Error().
 				Err(errorHandler).
 				Msg("error in onSuccessHandler when try to assign")
 		}
+	}
+
+	if handler.onPanicHandler != nil && handler.onPanicHandler.err != nil {
+		return
+	}
+
+	// will execute if there is no panic error in function wrapper and will skip if onPanicHandler defined
+	returnFinallyCallback := handler.finallyHandler.callback()
+	errorHandler = handler.finallyHandler.Assign(returnFinallyCallback)
+	if errorHandler != nil {
+		log.Error().
+			Err(errorHandler).
+			Msg("error in finallyHandler when try to assign")
 	}
 	return
 }
